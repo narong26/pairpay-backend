@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// Schema สำหรับ Transaction (รายจ่าย)
+// Schema สำหรับ Transaction (อัปเดตให้รองรับสลิป)
 const transactionSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   userNickname: { type: String, required: true },
@@ -30,6 +30,7 @@ const transactionSchema = new mongoose.Schema({
   category: { type: String, required: true },
   amount: { type: Number, required: true },
   description: { type: String },
+  slipUrl: { type: String }, // <-- เพิ่มเก็บลิงก์รูปสลิป (Base64 หรือ URL)
   dateTime: { type: String, required: true }
 }, { timestamps: true });
 
