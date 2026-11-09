@@ -53,7 +53,7 @@
             <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4 hidden">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อเล่น</label>
-                    <input type="text" id="reg-nickname" required class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-400 outline-none bg-gray-50/50" placeholder="เช่น ต้น หรือ เมย์">
+                    <input type="text" id="reg-nickname" required class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-400 outline-none bg-gray-50/50" placeholder="เช่น แนน หรือ เปา">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">เลขประจำตัวประชาชน (13 หลัก)</label>
@@ -129,7 +129,7 @@
             </div>
 
             <!-- ประวัติรายการย้อนหลัง (Log) -->
-            <div id="export-area" class="bg-white/95 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-xl border border-sky-100 space-y-4">
+            <div class="bg-white/95 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-xl border border-sky-100 space-y-4">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2"><span>📜</span> ประวัติรายจ่ายและสลิป</h2>
                     <select id="filter-month" onchange="renderApp()" class="text-xs border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 font-medium outline-none">
@@ -394,7 +394,6 @@
                     slipSectionHtml = `
                         <div class="mt-2">
                             <button onclick="openSlipModal('${tx.slipUrl}')" class="text-[11px] bg-sky-100 text-sky-700 px-2.5 py-1 rounded-md font-medium hover:bg-sky-200 transition">🔍 ดูสลิปเต็มจอ</button>
-                            <!-- รูปภาพที่จะติดไปใน PDF ด้วย -->
                             <div class="mt-2">
                                 <img src="${tx.slipUrl}" class="w-24 h-24 object-cover rounded-lg border shadow-sm" alt="สลิปโอนเงิน">
                             </div>
@@ -425,17 +424,81 @@
             document.getElementById('slip-modal').classList.add('hidden');
         }
 
-        // ฟังก์ชัน Export ประวัติพร้อมรูปสลิปเป็น PDF
+        // ฟังก์ชัน Export ประวัติพร้อมรูปสลิปเป็น PDF แบบสมบูรณ์
         function exportToPDF() {
-            const element = document.getElementById('export-area');
+            let transactions = JSON.parse(localStorage.getItem('couple_transactions')) || [];
+            const selectedMonth = document.getElementById('filter-month').value;
+            
+            let filteredTransactions = transactions;
+            let periodTitle = "ทั้งหมด";
+            if (selectedMonth !== 'all') {
+                filteredTransactions = transactions.filter(tx => {
+                    const d = new Date(tx.dateTime);
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === selectedMonth;
+                });
+                const [y, m] = selectedMonth.split('-');
+                periodTitle = new Date(y, m - 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+            }
+
+            if (filteredTransactions.length === 0) {
+                alert('ไม่พบข้อมูลสำหรับสร้าง PDF');
+                return;
+            }
+
+            let totalSum = 0;
+            filteredTransactions.forEach(tx => totalSum += tx.amount);
+            const perPerson = totalSum / 2;
+
+            const container = document.createElement('div');
+            container.style.padding = '20px';
+            container.style.fontFamily = "'Prompt', sans-serif";
+            container.style.color = '#333';
+            container.style.background = '#ffffff';
+            container.style.width = '700px';
+
+            let htmlContent = `
+                <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">
+                    <h1 style="font-size: 22px; font-weight: bold; color: #0284c7; margin: 0;">PairPay - รายงานประวัติรายจ่ายคู่รัก</h1>
+                    <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">ช่วงเวลา: ${periodTitle} | ออกรายงานเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+                </div>
+                <div style="background: #f0f9ff; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
+                    <div><b>ยอดใช้จ่ายรวมสุทธิ:</b> ${totalSum.toLocaleString(undefined, {minimumFractionDigits: 2})} บาท</div>
+                    <div><b>เฉลี่ยคนละ (หาร 2):</b> ${perPerson.toLocaleString(undefined, {minimumFractionDigits: 2})} บาท</div>
+                </div>
+                <div style="font-size: 13px;">
+                    <h3 style="font-size: 15px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">รายการทั้งหมด</h3>
+            `;
+
+            filteredTransactions.forEach((tx, index) => {
+                const dateStr = new Date(tx.dateTime).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                
+                htmlContent += `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #eee; padding: 10px 0; page-break-inside: avoid;">
+                        <div style="flex: 1; padding-right: 10px;">
+                            <div style="font-weight: bold; color: #1e293b;">${index + 1}. ${tx.category}</div>
+                            <div style="font-size: 11px; color: #555; margin-top: 2px;">${tx.description ? tx.description + ' • ' : ''}ผู้ทำรายการ: <b>${tx.userNickname} (${tx.userRole})</b></div>
+                            <div style="font-size: 10px; color: #888; margin-top: 1px;">${dateStr}</div>
+                            ${tx.slipUrl ? `<div style="margin-top: 6px;"><img src="${tx.slipUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #ccc;" /></div>` : ''}
+                        </div>
+                        <div style="text-align: right; font-weight: bold; color: #e11d48; font-size: 14px; white-space: nowrap;">
+                            -${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} ฿
+                        </div>
+                    </div>
+                `;
+            });
+
+            htmlContent += `</div>`;
+            container.innerHTML = htmlContent;
+
             const opt = {
                 margin:       10,
-                filename:     'PairPay-Transactions-With-Slips.pdf',
-                image:        { type: 'jpeg', quality: 0.95 },
-                html2canvas:  { scale: 2, useCORS: true, logging: true },
+                filename:     `PairPay-Report-${selectedMonth}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-            html2pdf().from(element).set(opt).save();
+
+            html2pdf().from(container).set(opt).save();
         }
     </script>
 </body>
