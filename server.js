@@ -6,12 +6,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// เชื่อมต่อ MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB error:', err.message));
 
-// โครงสร้างข้อมูลผู้ใช้
 const userSchema = new mongoose.Schema({
   nickname: { type: String, required: true },
   idCard:   { type: String, required: true },
@@ -22,7 +20,6 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// ตรวจว่าเซิร์ฟเวอร์ทำงาน
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
@@ -30,7 +27,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// สมัครสมาชิก
 app.post(['/register', '/api/register'], async (req, res) => {
   try {
     const { nickname, idCard, role, phone, username } = req.body;
@@ -48,7 +44,6 @@ app.post(['/register', '/api/register'], async (req, res) => {
   }
 });
 
-// เข้าสู่ระบบ
 app.post(['/login', '/api/login'], async (req, res) => {
   try {
     const { username, phone } = req.body;
