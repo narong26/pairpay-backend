@@ -529,7 +529,16 @@
             if (!s.payer) return '✨ จ่ายเท่ากันพอดี ไม่ต้องโอนเคลียร์';
             return `💡 <b>${escapeHtml(s.payer)}</b> ต้องโอนเคลียร์ให้ <b>${escapeHtml(s.receiver)}</b> <span style="color:#0284c7;font-weight:700">${fmt(s.diff)} บาท</span>`;
         }
-        
+
+        function paidBreakdownHtml(s) {
+            if (!s.people.length) return '';
+            return `<div class="mt-3 grid grid-cols-2 gap-2">` + s.people.slice(0, 2).map(p => `
+                <div class="bg-white/80 rounded-xl px-3 py-2">
+                    <div class="text-[11px] text-gray-500">${escapeHtml(p)} จ่ายไปแล้ว</div>
+                    <div class="font-bold text-gray-800">${fmt(s.paid[p] || 0)} บาท</div>
+                </div>`).join('') + `</div>`;
+        }
+
         // ================= แสดงผล =================
         function renderApp() {
             const list = getFiltered();
