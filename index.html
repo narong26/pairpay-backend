@@ -397,7 +397,7 @@
             }
         }
 
-        // ================= เพิ่ม / โหลด รายการ =================
+        // ================= เพิ่มรายการ (Real-time) =================
         async function addTransaction(event) {
             event.preventDefault();
             const btn = document.getElementById('btn-add');
@@ -424,11 +424,20 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newTx)
                 });
                 if (res.ok) {
+                    const savedItem = await res.json();
                     document.getElementById('tx-amount').value = '';
                     document.getElementById('tx-desc').value = '';
                     fileInput.value = '';
                     document.getElementById('tx-datetime').value = toLocalInput(new Date());
-                    await loadTransactionsFromCloud();
+
+                    // เพิ่มรายการใหม่เข้าอาเรย์ทันทีโดยไม่ต้องโหลดใหม่ทั้งหมด
+                    allTransactions.unshift({
+                        ...savedItem,
+                        id: savedItem._id || savedItem.id,
+                        category: normalizeCategory(savedItem.category)
+                    });
+                    populateMonthFilter();
+                    renderApp();
                 } else alert('บันทึกไม่สำเร็จ');
             } catch (err) { console.error(err); alert('เกิดข้อผิดพลาด'); }
             finally { btn.disabled = false; btn.textContent = 'บันทึกรายการ'; }
@@ -639,7 +648,7 @@
             document.getElementById('slip-modal').classList.add('hidden');
         }
 
-        // ================= แก้ไข / ลบ =================
+        // ================= แก้ไข / ลบ (Real-time) =================
         function openEditModal(id) {
             const tx = allTransactions.find(t => getTxId(t) === id);
             if (!tx) return;
@@ -699,8 +708,21 @@
                     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
                 });
                 if (res.ok) {
+                    const updatedItem = await res.json();
+                    
+                    // อัปเดตข้อมูลในอาเรย์หลักทันที
+                    const index = allTransactions.findIndex(t => getTxId(t) === id);
+                    if (index !== -1) {
+                        allTransactions[index] = {
+                            ...updatedItem,
+                            id: updatedItem._id || updatedItem.id,
+                            category: normalizeCategory(updatedItem.category)
+                        };
+                    }
+
                     closeEditModal();
-                    await loadTransactionsFromCloud();
+                    populateMonthFilter();
+                    renderApp();
                 } else if (res.status === 404) {
                     alert('ไม่พบรายการ บนเซิร์ฟเวอร์');
                 } else alert('แก้ไขไม่สำเร็จ');
@@ -714,9 +736,14 @@
             if (!confirm(`ยืนยันการลบรายการนี้?\n\n${tx.category}\nจำนวน ${fmt(tx.amount)} บาท\nโดย ${tx.userNickname}`)) return;
             try {
                 const res = await fetch(`${API_BASE_URL}/api/transactions/${id}`, { method: 'DELETE' });
-                if (res.ok) await loadTransactionsFromCloud();
-                else if (res.status === 404) alert('ไม่พบรายการ บนเซิร์ฟเวอร์');
-                else alert('ลบไม่สำเร็จ');
+                if (res.ok) {
+                    // กรองข้อมูลที่ถูกลบทิ้งจากอาเรย์หลักทันที
+                    allTransactions = allTransactions.filter(t => getTxId(t) !== id);
+                    populateMonthFilter();
+                    renderApp();
+                } else if (res.status === 404) {
+                    alert('ไม่พบรายการ บนเซิร์ฟเวอร์');
+                } else alert('ลบไม่สำเร็จ');
             } catch (err) { console.error(err); alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
         }
 
