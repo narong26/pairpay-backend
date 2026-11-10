@@ -242,7 +242,7 @@
         </div>
     </div>
 
-    <!-- พื้นที่สำหรับพิมพ์ (แสดงเฉพาะตอนพิมพ์/บันทึก PDF) -->
+    <!-- พื้นที่สำหรับพิมพ์ -->
     <div id="print-area"></div>
 
     <script>
@@ -267,6 +267,22 @@
         const monthKey = dt => { const d = new Date(dt); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
         const toLocalInput = dt => { const d = new Date(dt); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 
+        // จับคู่หมวดหมู่เก่า/ใหม่ให้ตรงกันอัตโนมัติ
+        function normalizeCategory(c) {
+            if (!c) return '🏷️ อื่นๆ';
+            if (c.includes('💸') || c.includes('🚗') || c.includes('🍲') || c.includes('💧') || c.includes('⚡') || c.includes('📦') || c.includes('🏷️')) {
+                return c;
+            }
+            const clean = c.trim();
+            if (clean.includes('ยืมเงิน')) return '💸 ยืมเงิน';
+            if (clean.includes('น้ำมัน')) return '🚗 ค่าน้ำมันรถยนต์-จักรยานยนต์';
+            if (clean.includes('ร้านอาหาร') || clean.includes('บุฟเฟต์')) return '🍲 ร้านอาหาร / ร้านบุฟเฟต์';
+            if (clean.includes('ค่าน้ำ')) return '💧 ค่าน้ำ';
+            if (clean.includes('ค่าไฟ')) return '⚡ ค่าไฟ';
+            if (clean.includes('ผ่อนของ')) return '📦 ค่าผ่อนของออนไลน์';
+            return '🏷️ อื่นๆ';
+        }
+
         function getPeriodLabel(long = false) {
             const m = document.getElementById('filter-month').value;
             if (m === 'all') return 'ทั้งหมด';
@@ -274,7 +290,7 @@
             return new Date(y, mm - 1).toLocaleDateString('th-TH', { month: long ? 'long' : 'short', year: 'numeric' });
         }
 
-        // ย่อรูปสลิปก่อนอัปโหลด (ลดขนาดไฟล์)
+        // ย่อรูปสลิปก่อนอัปโหลด
         function compressImage(file, maxSize = 1280, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -296,7 +312,6 @@
             });
         }
 
-        // ================= เริ่มต้น =================
         document.addEventListener('DOMContentLoaded', () => {
             fillCategorySelects();
             document.getElementById('tx-datetime').value = toLocalInput(new Date());
@@ -376,7 +391,6 @@
             document.getElementById('btn-logout').classList.toggle('hidden', !loggedIn);
             if (loggedIn) {
                 document.getElementById('user-welcome').textContent = `ยินดีต้อนรับ คุณ${currentUser.nickname} (${currentUser.role})`;
-                localStorage.removeItem('couple_transactions'); // ล้างแคชเก่าที่อาจทำให้พื้นที่เต็ม
                 loadTransactionsFromCloud();
             } else {
                 document.getElementById('user-welcome').textContent = 'ยังไม่ได้เข้าสู่ระบบ';
@@ -425,7 +439,11 @@
                 const res = await fetch(`${API_BASE_URL}/api/transactions`);
                 const data = await res.json();
                 if (res.ok) {
-                    allTransactions = Array.isArray(data) ? data : [];
+                    allTransactions = (Array.isArray(data) ? data : []).map(tx => ({
+                        ...tx,
+                        id: tx._id || tx.id,
+                        category: normalizeCategory(tx.category)
+                    }));
                     populateMonthFilter();
                     renderApp();
                 }
@@ -455,7 +473,6 @@
             return list.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
         }
 
-        // รายชื่อคนในระบบ (ดึงจากรายการทั้งหมด เพื่อให้คำนวณได้แม้บางเดือนมีคนบันทึกคนเดียว)
         function getPeople() {
             return [...new Set(allTransactions.map(tx => tx.userNickname).filter(Boolean))];
         }
@@ -486,7 +503,7 @@
         function groupByCategory(list) {
             const map = {};
             list.forEach(tx => {
-                const c = tx.category || 'ไม่ระบุหมวด';
+                const c = tx.category || '🏷️ อื่นๆ';
                 if (!map[c]) map[c] = { category: c, total: 0, count: 0, byPerson: {} };
                 const amt = Number(tx.amount) || 0;
                 map[c].total += amt;
@@ -531,7 +548,6 @@
                 return;
             }
 
-            // มุมมอง: แยกทุกหมวดหมู่
             if (view === 'by-category') {
                 const groups = groupByCategory(list);
                 const s = calcSplit(list);
@@ -560,7 +576,6 @@
                 return;
             }
 
-            // มุมมอง: รวมทั้งหมด หรือ หมวดเดียว
             let sub = list, title = 'ยอดใช้จ่ายรวมทุกหมวด';
             if (view.startsWith('cat:')) {
                 const cat = view.slice(4);
@@ -687,7 +702,7 @@
                     closeEditModal();
                     await loadTransactionsFromCloud();
                 } else if (res.status === 404) {
-                    alert('ไม่พบรายการ หรือเซิร์ฟเวอร์ยังไม่รองรับการแก้ไข (ต้องเพิ่ม API PUT ใน backend)');
+                    alert('ไม่พบรายการ บนเซิร์ฟเวอร์');
                 } else alert('แก้ไขไม่สำเร็จ');
             } catch (err) { console.error(err); alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
             finally { btn.disabled = false; btn.textContent = 'บันทึกการแก้ไข'; }
@@ -700,7 +715,7 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/api/transactions/${id}`, { method: 'DELETE' });
                 if (res.ok) await loadTransactionsFromCloud();
-                else if (res.status === 404) alert('ไม่พบรายการ หรือเซิร์ฟเวอร์ยังไม่รองรับการลบ (ต้องเพิ่ม API DELETE ใน backend)');
+                else if (res.status === 404) alert('ไม่พบรายการ บนเซิร์ฟเวอร์');
                 else alert('ลบไม่สำเร็จ');
             } catch (err) { console.error(err); alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
         }
