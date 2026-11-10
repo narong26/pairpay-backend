@@ -3,30 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PairPay - บัญชีคู่รัก (Phase 2 with Slips in PDF)</title>
+    <title>PairPay - ระบบบัญชีรายจ่ายแนนกับเปา</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- โหลดไลบรารี html2pdf สำหรับแปลงประวัติเป็น PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Prompt', sans-serif; }</style>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+
+        /* ===== สไตล์เอกสาร Statement ===== */
+        .st { font-size: 12px; color: #1f2937; font-family: 'Prompt', sans-serif; }
+        .st h1 { font-size: 18px; font-weight: 700; color: #0369a1; margin: 0; }
+        .st .st-head { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 8px; margin-bottom: 10px; }
+        .st .muted { color: #6b7280; font-size: 11px; }
+        .st .sec { font-size: 14px; font-weight: 700; margin: 14px 0 6px; color: #0c4a6e; }
+        .st .box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 8px 12px; line-height: 1.8; }
+        .st table { width: 100%; border-collapse: collapse; }
+        .st th, .st td { border: 1px solid #e5e7eb; padding: 5px 6px; text-align: left; vertical-align: top; }
+        .st th { background: #f0f9ff; font-weight: 600; }
+        .st .num { text-align: right; white-space: nowrap; }
+        .st tfoot td { font-weight: 700; background: #f9fafb; }
+        .st img.slip { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
+
+        /* ===== โหมดพิมพ์ / บันทึก PDF ===== */
+        #print-area { display: none; }
+        @media print {
+            @page { size: A4; margin: 12mm; }
+            body { background: #fff !important; }
+            body > *:not(#print-area) { display: none !important; }
+            #print-area { display: block !important; }
+            .st-row { page-break-inside: avoid; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-sky-50 to-amber-50 text-gray-800 min-h-screen pb-12">
 
     <div class="max-w-md mx-auto p-4 sm:max-w-xl">
-        
+
         <!-- ส่วนหัวแอป -->
-        <header class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white p-5 rounded-3xl shadow-lg mb-6 flex justify-between items-center">
+        <header class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white p-5 rounded-3xl shadow-lg mb-6 flex justify-between items-center gap-3">
             <div>
-                <h1 class="text-xl font-bold tracking-wide">💳 PairPay (Phase 2)</h1>
+                <h1 class="text-lg font-bold leading-snug">💳 PairPay <span class="block text-sm font-medium text-sky-100">(ระบบบัญชีรายจ่ายแนนกับเปา)</span></h1>
                 <p id="user-welcome" class="text-xs text-sky-100 mt-1">ยังไม่ได้เข้าสู่ระบบ</p>
             </div>
-            <button id="btn-logout" onclick="logout()" class="hidden bg-rose-500 text-xs px-3.5 py-2 rounded-xl shadow-md hover:bg-rose-600 transition font-medium">ออกจากระบบ</button>
+            <button id="btn-logout" onclick="logout()" class="hidden shrink-0 bg-rose-500 text-xs px-3.5 py-2 rounded-xl shadow-md hover:bg-rose-600 transition font-medium">ออกจากระบบ</button>
         </header>
 
         <!-- หน้าต่าง: สมัครสมาชิก / เข้าสู่ระบบ -->
         <div id="auth-section" class="bg-white/95 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-xl border border-sky-100 mb-6">
             <div class="text-center mb-6">
-                <div class="inline-block bg-sky-100 text-sky-600 px-4 py-1.5 rounded-full text-xs font-semibold mb-2 shadow-inner">✨ บัญชีคู่รักยุคใหม่ ใช้งานร่วมกัน</div>
+                <div class="inline-block bg-sky-100 text-sky-600 px-4 py-1.5 rounded-full text-xs font-semibold mb-2 shadow-inner">✨ บัญชีรายจ่ายแนนกับเปา</div>
                 <h2 class="text-2xl font-bold text-gray-800">ยินดีต้อนรับสู่ PairPay</h2>
                 <p class="text-xs text-gray-500 mt-1">จัดการค่าใช้จ่ายและสลิปโอนเงิน ไม่มีสะดุด</p>
             </div>
@@ -80,22 +105,14 @@
 
         <!-- หน้าต่าง: แอปหลัก -->
         <div id="app-section" class="hidden space-y-6">
-            
+
             <!-- ฟอร์มบันทึกค่าใช้จ่าย -->
             <div class="bg-white/95 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-xl border border-sky-100">
                 <h2 class="text-lg font-bold mb-4 text-gray-800 flex items-center gap-2"><span>📝</span> บันทึกรายการใหม่</h2>
                 <form onsubmit="addTransaction(event)" class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
-                        <select id="tx-category" class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl bg-gray-50/50 focus:ring-2 focus:ring-sky-400 outline-none transition">
-                            <option value="💸 ยืมเงิน">💸 ยืมเงิน</option>
-                            <option value="🚗 ค่าน้ำมันรถยนต์-จักรยานยนต์">🚗 ค่าน้ำมันรถยนต์-จักรยานยนต์</option>
-                            <option value="🍲 ร้านอาหาร / ร้านบุฟเฟต์">🍲 ร้านอาหาร / ร้านบุฟเฟต์</option>
-                            <option value="💧 ค่าน้ำ">💧 ค่าน้ำ</option>
-                            <option value="⚡ ค่าไฟ">⚡ ค่าไฟ</option>
-                            <option value="📦 ค่าผ่อนของออนไลน์">📦 ค่าผ่อนของออนไลน์</option>
-                            <option value="🏷️ อื่นๆ">🏷️ อื่นๆ</option>
-                        </select>
+                        <select id="tx-category" class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl bg-gray-50/50 focus:ring-2 focus:ring-sky-400 outline-none transition"></select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">จำนวนเงิน (บาท)</label>
@@ -113,102 +130,218 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">วันที่และเวลา</label>
                         <input type="datetime-local" id="tx-datetime" required class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl bg-gray-50/50 focus:ring-2 focus:ring-sky-400 outline-none transition">
                     </div>
-                    <button type="submit" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white py-3 rounded-2xl font-semibold shadow-lg shadow-sky-500/20 transition">บันทึกรายการ</button>
+                    <button type="submit" id="btn-add" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white py-3 rounded-2xl font-semibold shadow-lg shadow-sky-500/20 transition disabled:opacity-60">บันทึกรายการ</button>
                 </form>
             </div>
 
             <!-- ส่วนสรุปผลและคำนวณหารสอง -->
             <div class="bg-gradient-to-br from-sky-50 to-indigo-50 p-6 sm:p-8 rounded-3xl border border-sky-200/60 shadow-md">
-                <h2 class="text-lg font-bold mb-3 text-sky-900 flex items-center gap-2"><span>📊</span> สรุปยอดรวมและการหารสอง</h2>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between text-gray-700"><span>ยอดใช้จ่ายรวม (<span id="summary-period-label">ทั้งหมด</span>):</span> <span id="summary-total" class="font-bold text-gray-900">0.00 บาท</span></div>
-                    <div class="flex justify-between text-gray-700"><span>เฉลี่ยคนละ (หาร 2):</span> <span id="summary-per-person" class="font-bold text-sky-600">0.00 บาท</span></div>
-                    <hr class="border-sky-200/60 my-2">
-                    <div id="summary-settlement" class="font-medium text-gray-700">กำลังคำนวณ...</div>
+                <div class="flex justify-between items-center gap-2 mb-3">
+                    <h2 class="text-lg font-bold text-sky-900 flex items-center gap-2"><span>📊</span> สรุปยอดและการหารสอง</h2>
+                    <span id="summary-period-label" class="text-xs text-sky-700 bg-white/80 px-2.5 py-1 rounded-lg font-medium">ทั้งหมด</span>
                 </div>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <div>
+                        <label class="block text-[11px] text-gray-500 mb-1">ช่วงเวลา</label>
+                        <select id="filter-month" onchange="renderApp()" class="w-full text-xs border border-sky-200 rounded-xl px-3 py-2 bg-white font-medium outline-none">
+                            <option value="all">ทุกเดือน/ปี</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-gray-500 mb-1">มุมมอง</label>
+                        <select id="summary-view" onchange="renderApp()" class="w-full text-xs border border-sky-200 rounded-xl px-3 py-2 bg-white font-medium outline-none"></select>
+                    </div>
+                </div>
+                <div id="summary-content" class="text-sm text-gray-700">กำลังคำนวณ...</div>
             </div>
 
-            <!-- ประวัติรายการย้อนหลัง (Log) -->
+            <!-- ประวัติรายการย้อนหลัง -->
             <div class="bg-white/95 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-xl border border-sky-100 space-y-4">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2"><span>📜</span> ประวัติรายจ่ายและสลิป</h2>
-                    <select id="filter-month" onchange="renderApp()" class="text-xs border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 font-medium outline-none">
-                        <option value="all">ทุกเดือน/ปี</option>
-                    </select>
+                    <span id="history-period-label" class="text-xs text-gray-500">ทั้งหมด</span>
                 </div>
 
-                <!-- ปุ่ม Export PDF -->
-                <button onclick="exportToPDF()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2.5 rounded-xl font-semibold shadow transition flex items-center justify-center gap-2">
-                    <span>📥 ดาวน์โหลดประวัติและสลิปเป็นไฟล์ PDF</span>
+                <button onclick="openStatement()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm py-2.5 rounded-xl font-semibold shadow transition">
+                    📄 ดาวน์โหลด Statement ประจำเดือน
                 </button>
+                <p class="text-[11px] text-gray-400 -mt-2 text-center">Statement จะออกตาม "ช่วงเวลา" ที่เลือกไว้ในช่องสรุปยอด</p>
 
-                <div id="transaction-list" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                <div id="transaction-list" class="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
                     <p class="text-sm text-gray-400 text-center py-4">กำลังโหลดข้อมูล...</p>
                 </div>
             </div>
-
         </div>
-
     </div>
 
-    <!-- Modal สำหรับดูรูปสลิปขนาดใหญ่ -->
+    <!-- Modal ดูรูปสลิปขนาดใหญ่ -->
     <div id="slip-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onclick="closeSlipModal()">
-        <div class="bg-white p-4 rounded-2xl max-w-lg w-full relative text-center" onclick="event.stopPropagation()">
+        <div class="bg-white p-4 rounded-2xl max-w-lg w-full text-center" onclick="event.stopPropagation()">
             <h3 class="font-bold mb-3 text-gray-800">หลักฐานสลิปการโอนเงิน</h3>
             <img id="modal-slip-img" src="" class="max-h-[70vh] mx-auto rounded-xl border object-contain">
             <button onclick="closeSlipModal()" class="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-xs font-semibold">ปิดหน้าต่าง</button>
         </div>
     </div>
 
+    <!-- Modal แก้ไขรายการ -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="closeEditModal()">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold mb-4 text-gray-800">✏️ แก้ไขรายการ</h3>
+            <form onsubmit="saveEdit(event)" class="space-y-3">
+                <input type="hidden" id="edit-id">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
+                    <select id="edit-category" class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl bg-gray-50/50 outline-none focus:ring-2 focus:ring-amber-400"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">จำนวนเงิน (บาท)</label>
+                    <input type="number" step="0.01" min="0.01" id="edit-amount" required class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl bg-gray-50/50 outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รายละเอียดเพิ่มเติม</label>
+                    <input type="text" id="edit-desc" class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl bg-gray-50/50 outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">วันที่และเวลา</label>
+                    <input type="datetime-local" id="edit-datetime" required class="w-full px-4 py-2.5 border border-gray-200 rounded-2xl bg-gray-50/50 outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">สลิปปัจจุบัน</label>
+                    <div id="edit-slip-preview" class="text-xs text-gray-400">ไม่มีสลิป</div>
+                    <label id="edit-remove-wrap" class="hidden mt-2 text-xs text-rose-600 items-center gap-2">
+                        <input type="checkbox" id="edit-remove-slip"> ลบสลิปเดิมออก
+                    </label>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">เปลี่ยนสลิปใหม่ (ไม่บังคับ)</label>
+                    <input type="file" id="edit-slip" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700">
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-2">
+                    <button type="button" onclick="closeEditModal()" class="bg-gray-100 text-gray-600 py-2.5 rounded-2xl font-semibold">ยกเลิก</button>
+                    <button type="submit" id="btn-save-edit" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white py-2.5 rounded-2xl font-semibold shadow disabled:opacity-60">บันทึกการแก้ไข</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Statement -->
+    <div id="statement-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3" onclick="closeStatement()">
+        <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="p-4 border-b border-gray-100 flex flex-wrap gap-2 items-center justify-between">
+                <h3 class="font-bold text-gray-800">📄 ตัวอย่าง Statement</h3>
+                <label class="text-xs text-gray-600 flex items-center gap-1.5">
+                    <input type="checkbox" id="st-include-slips" onchange="refreshStatement()"> แนบรูปสลิปในเอกสาร
+                </label>
+            </div>
+            <div id="statement-content" class="p-4 overflow-y-auto flex-1"></div>
+            <div class="p-4 border-t border-gray-100 grid grid-cols-3 gap-2">
+                <button onclick="printStatement()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs py-2.5 rounded-xl font-semibold">🖨️ บันทึกเป็น PDF</button>
+                <button onclick="downloadCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2.5 rounded-xl font-semibold">📊 Excel (CSV)</button>
+                <button onclick="closeStatement()" class="bg-gray-100 text-gray-600 text-xs py-2.5 rounded-xl font-semibold">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- พื้นที่สำหรับพิมพ์ (แสดงเฉพาะตอนพิมพ์/บันทึก PDF) -->
+    <div id="print-area"></div>
+
     <script>
         const API_BASE_URL = 'https://pairpay-backend.onrender.com';
 
+        const CATEGORIES = [
+            '💸 ยืมเงิน',
+            '🚗 ค่าน้ำมันรถยนต์-จักรยานยนต์',
+            '🍲 ร้านอาหาร / ร้านบุฟเฟต์',
+            '💧 ค่าน้ำ',
+            '⚡ ค่าไฟ',
+            '📦 ค่าผ่อนของออนไลน์',
+            '🏷️ อื่นๆ'
+        ];
+
+        let allTransactions = [];
+
+        // ================= ตัวช่วยทั่วไป =================
+        const fmt = n => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const getTxId = tx => tx._id || tx.id;
+        const monthKey = dt => { const d = new Date(dt); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+        const toLocalInput = dt => { const d = new Date(dt); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+        function getPeriodLabel(long = false) {
+            const m = document.getElementById('filter-month').value;
+            if (m === 'all') return 'ทั้งหมด';
+            const [y, mm] = m.split('-');
+            return new Date(y, mm - 1).toLocaleDateString('th-TH', { month: long ? 'long' : 'short', year: 'numeric' });
+        }
+
+        // ย่อรูปสลิปก่อนอัปโหลด (ลดขนาดไฟล์)
+        function compressImage(file, maxSize = 1280, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(img.width * scale);
+                        canvas.height = Math.round(img.height * scale);
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = () => resolve(reader.result);
+                    img.src = reader.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ================= เริ่มต้น =================
         document.addEventListener('DOMContentLoaded', () => {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById('tx-datetime').value = now.toISOString().slice(0,16);
+            fillCategorySelects();
+            document.getElementById('tx-datetime').value = toLocalInput(new Date());
             checkSession();
         });
 
-        function switchTab(tab) {
-            const loginTab = document.getElementById('tab-login');
-            const regTab = document.getElementById('tab-register');
-            const loginForm = document.getElementById('form-login');
-            const regForm = document.getElementById('form-register');
+        function fillCategorySelects() {
+            const opts = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('tx-category').innerHTML = opts;
+            document.getElementById('edit-category').innerHTML = opts;
+            document.getElementById('summary-view').innerHTML =
+                `<option value="total">💰 ยอดรวมทั้งหมด</option>` +
+                `<option value="by-category">🗂️ แยกตามหมวดหมู่ (ทุกหมวด)</option>` +
+                CATEGORIES.map(c => `<option value="cat:${c}">${c}</option>`).join('');
+        }
 
-            if (tab === 'login') {
-                loginTab.className = "flex-1 pb-3 font-semibold text-sky-600 border-b-2 border-sky-500 transition";
-                regTab.className = "flex-1 pb-3 text-gray-400 font-medium hover:text-gray-600 transition";
-                loginForm.classList.remove('hidden');
-                regForm.classList.add('hidden');
-            } else {
-                regTab.className = "flex-1 pb-3 font-semibold text-sky-600 border-b-2 border-sky-500 transition";
-                loginTab.className = "flex-1 pb-3 text-gray-400 font-medium hover:text-gray-600 transition";
-                regForm.classList.remove('hidden');
-                loginForm.classList.add('hidden');
-            }
+        // ================= ระบบสมาชิก =================
+        function switchTab(tab) {
+            const active = "flex-1 pb-3 font-semibold text-sky-600 border-b-2 border-sky-500 transition";
+            const inactive = "flex-1 pb-3 text-gray-400 font-medium hover:text-gray-600 transition";
+            document.getElementById('tab-login').className = tab === 'login' ? active : inactive;
+            document.getElementById('tab-register').className = tab === 'login' ? inactive : active;
+            document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('form-register').classList.toggle('hidden', tab === 'login');
         }
 
         async function handleRegister(e) {
             e.preventDefault();
-            const nickname = document.getElementById('reg-nickname').value.trim();
-            const idCard = document.getElementById('reg-idcard').value.trim();
-            const role = document.getElementById('reg-role').value;
-            const phone = document.getElementById('reg-phone').value.trim();
-            const username = document.getElementById('reg-username').value.trim();
-
+            const body = {
+                nickname: document.getElementById('reg-nickname').value.trim(),
+                idCard: document.getElementById('reg-idcard').value.trim(),
+                role: document.getElementById('reg-role').value,
+                phone: document.getElementById('reg-phone').value.trim(),
+                username: document.getElementById('reg-username').value.trim()
+            };
             try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname, idCard, role, phone, username })
+                const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
                 });
-                const data = await response.json();
-                if (response.ok) {
+                const data = await res.json();
+                if (res.ok) {
                     alert('สมัครสมาชิกสำเร็จ!');
                     document.getElementById('form-register').reset();
                     switchTab('login');
-                } else { alert(data.message || 'เกิดข้อผิดพลาด'); }
+                } else alert(data.message || 'เกิดข้อผิดพลาด');
             } catch (err) { console.error(err); alert('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'); }
         }
 
@@ -216,302 +349,490 @@
             e.preventDefault();
             const username = document.getElementById('login-user').value.trim();
             const password = document.getElementById('login-pass').value.trim();
-
             try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password })
                 });
-                const data = await response.json();
-                if (response.ok) {
+                const data = await res.json();
+                if (res.ok) {
                     localStorage.setItem('current_user', JSON.stringify(data.user));
                     checkSession();
-                } else { alert(data.message || 'รหัสผ่านไม่ถูกต้อง'); }
+                } else alert(data.message || 'รหัสผ่านไม่ถูกต้อง');
             } catch (err) { console.error(err); alert('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'); }
         }
 
         function logout() {
             localStorage.removeItem('current_user');
+            localStorage.removeItem('couple_transactions');
+            allTransactions = [];
             checkSession();
         }
 
         function checkSession() {
             const currentUser = JSON.parse(localStorage.getItem('current_user'));
-            if (currentUser) {
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('app-section').classList.remove('hidden');
-                document.getElementById('btn-logout').classList.remove('hidden');
+            const loggedIn = !!currentUser;
+            document.getElementById('auth-section').classList.toggle('hidden', loggedIn);
+            document.getElementById('app-section').classList.toggle('hidden', !loggedIn);
+            document.getElementById('btn-logout').classList.toggle('hidden', !loggedIn);
+            if (loggedIn) {
                 document.getElementById('user-welcome').textContent = `ยินดีต้อนรับ คุณ${currentUser.nickname} (${currentUser.role})`;
+                localStorage.removeItem('couple_transactions'); // ล้างแคชเก่าที่อาจทำให้พื้นที่เต็ม
                 loadTransactionsFromCloud();
             } else {
-                document.getElementById('auth-section').classList.remove('hidden');
-                document.getElementById('app-section').classList.add('hidden');
-                document.getElementById('btn-logout').classList.add('hidden');
+                document.getElementById('user-welcome').textContent = 'ยังไม่ได้เข้าสู่ระบบ';
             }
         }
 
-        function convertFileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-
+        // ================= เพิ่ม / โหลด รายการ =================
         async function addTransaction(event) {
             event.preventDefault();
+            const btn = document.getElementById('btn-add');
             const currentUser = JSON.parse(localStorage.getItem('current_user'));
-            const category = document.getElementById('tx-category').value;
-            const amount = parseFloat(document.getElementById('tx-amount').value);
-            const description = document.getElementById('tx-desc').value.trim();
-            const dateTime = document.getElementById('tx-datetime').value;
             const fileInput = document.getElementById('tx-slip');
 
-            let slipUrl = '';
-            if (fileInput.files && fileInput.files[0]) {
-                try {
-                    slipUrl = await convertFileToBase64(fileInput.files[0]);
-                } catch (e) { console.error('แปลงรูปไม่สำเร็จ', e); }
-            }
-
-            const newTx = {
-                userId: currentUser.username,
-                userNickname: currentUser.nickname,
-                userRole: currentUser.role,
-                category,
-                amount,
-                description,
-                slipUrl,
-                dateTime
-            };
-
+            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
             try {
-                const response = await fetch(`${API_BASE_URL}/api/transactions`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newTx)
+                let slipUrl = '';
+                if (fileInput.files && fileInput.files[0]) slipUrl = await compressImage(fileInput.files[0]);
+
+                const newTx = {
+                    userId: currentUser.username,
+                    userNickname: currentUser.nickname,
+                    userRole: currentUser.role,
+                    category: document.getElementById('tx-category').value,
+                    amount: parseFloat(document.getElementById('tx-amount').value),
+                    description: document.getElementById('tx-desc').value.trim(),
+                    slipUrl,
+                    dateTime: document.getElementById('tx-datetime').value
+                };
+
+                const res = await fetch(`${API_BASE_URL}/api/transactions`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newTx)
                 });
-                if (response.ok) {
+                if (res.ok) {
                     document.getElementById('tx-amount').value = '';
                     document.getElementById('tx-desc').value = '';
-                    document.getElementById('tx-slip').value = '';
-                    loadTransactionsFromCloud();
-                } else { alert('บันทึกไม่สำเร็จ'); }
+                    fileInput.value = '';
+                    document.getElementById('tx-datetime').value = toLocalInput(new Date());
+                    await loadTransactionsFromCloud();
+                } else alert('บันทึกไม่สำเร็จ');
             } catch (err) { console.error(err); alert('เกิดข้อผิดพลาด'); }
+            finally { btn.disabled = false; btn.textContent = 'บันทึกรายการ'; }
         }
 
         async function loadTransactionsFromCloud() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/transactions`);
-                const transactions = await response.json();
-                if (response.ok) {
-                    localStorage.setItem('couple_transactions', JSON.stringify(transactions));
+                const res = await fetch(`${API_BASE_URL}/api/transactions`);
+                const data = await res.json();
+                if (res.ok) {
+                    allTransactions = Array.isArray(data) ? data : [];
                     populateMonthFilter();
                     renderApp();
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('transaction-list').innerHTML =
+                    `<p class="text-sm text-rose-400 text-center py-4">โหลดข้อมูลไม่สำเร็จ (เซิร์ฟเวอร์อาจกำลังตื่น ลองรีเฟรชอีกครั้ง)</p>`;
+            }
         }
 
         function populateMonthFilter() {
-            let transactions = JSON.parse(localStorage.getItem('couple_transactions')) || [];
             const filterEl = document.getElementById('filter-month');
             const currentValue = filterEl.value;
-            const monthSet = new Set();
-            transactions.forEach(tx => {
-                const d = new Date(tx.dateTime);
-                monthSet.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-            });
-            const sortedMonths = Array.from(monthSet).sort().reverse();
-            filterEl.innerHTML = `<option value="all">ทุกเดือน/ปี</option>`;
-            sortedMonths.forEach(mKey => {
-                const [year, month] = mKey.split('-');
-                const label = new Date(year, month - 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-                const opt = document.createElement('option');
-                opt.value = mKey;
-                opt.textContent = label;
-                filterEl.appendChild(opt);
-            });
-            if (sortedMonths.includes(currentValue) || currentValue === 'all') filterEl.value = currentValue;
+            const months = [...new Set(allTransactions.map(tx => monthKey(tx.dateTime)))].sort().reverse();
+            filterEl.innerHTML = `<option value="all">ทุกเดือน/ปี</option>` + months.map(mKey => {
+                const [y, m] = mKey.split('-');
+                const label = new Date(y, m - 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+                return `<option value="${mKey}">${label}</option>`;
+            }).join('');
+            filterEl.value = (months.includes(currentValue) || currentValue === 'all') ? currentValue : 'all';
         }
 
+        // ================= คำนวณ =================
+        function getFiltered() {
+            const m = document.getElementById('filter-month').value;
+            const list = m === 'all' ? [...allTransactions] : allTransactions.filter(tx => monthKey(tx.dateTime) === m);
+            return list.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+        }
+
+        // รายชื่อคนในระบบ (ดึงจากรายการทั้งหมด เพื่อให้คำนวณได้แม้บางเดือนมีคนบันทึกคนเดียว)
+        function getPeople() {
+            return [...new Set(allTransactions.map(tx => tx.userNickname).filter(Boolean))];
+        }
+
+        function calcSplit(list) {
+            const people = getPeople();
+            const paid = {};
+            people.forEach(p => paid[p] = 0);
+            let total = 0;
+            list.forEach(tx => {
+                const amt = Number(tx.amount) || 0;
+                total += amt;
+                paid[tx.userNickname] = (paid[tx.userNickname] || 0) + amt;
+            });
+            const half = total / 2;
+            let payer = null, receiver = null, diff = 0;
+            if (people.length >= 2) {
+                const [a, b] = people;
+                const d = (paid[a] || 0) - half;
+                if (Math.abs(d) >= 0.005) {
+                    if (d > 0) { payer = b; receiver = a; diff = d; }
+                    else { payer = a; receiver = b; diff = -d; }
+                }
+            }
+            return { total, half, paid, people, payer, receiver, diff };
+        }
+
+        function groupByCategory(list) {
+            const map = {};
+            list.forEach(tx => {
+                const c = tx.category || 'ไม่ระบุหมวด';
+                if (!map[c]) map[c] = { category: c, total: 0, count: 0, byPerson: {} };
+                const amt = Number(tx.amount) || 0;
+                map[c].total += amt;
+                map[c].count++;
+                map[c].byPerson[tx.userNickname] = (map[c].byPerson[tx.userNickname] || 0) + amt;
+            });
+            const order = c => { const i = CATEGORIES.indexOf(c); return i === -1 ? 999 : i; };
+            return Object.values(map).sort((a, b) => order(a.category) - order(b.category));
+        }
+
+        function settlementText(s) {
+            if (s.total === 0) return 'ไม่มีรายการ';
+            if (s.people.length < 2) return 'ℹ️ รอรายการจากอีกฝ่าย (ตอนนี้มีผู้บันทึกเพียงคนเดียว)';
+            if (!s.payer) return '✨ จ่ายเท่ากันพอดี ไม่ต้องโอนเคลียร์';
+            return `💡 <b>${escapeHtml(s.payer)}</b> ต้องโอนเคลียร์ให้ <b>${escapeHtml(s.receiver)}</b> <span style="color:#0284c7;font-weight:700">${fmt(s.diff)} บาท</span>`;
+        }
+
+        function paidBreakdownHtml(s) {
+            if (!s.people.length) return '';
+            return `<div class="mt-3 grid grid-cols-2 gap-2">` + s.people.slice(0, 2).map(p => `
+                <div class="bg-white/80 rounded-xl px-3 py-2">
+                    <div class="text-[11px] text-gray-500">${escapeHtml(p)} จ่ายไปแล้ว</div>
+                    <div class="font-bold text-gray-800">${fmt(s.paid[p] || 0)} บาท</div>
+                </div>`).join('') + `</div>`;
+        }
+
+        // ================= แสดงผล =================
         function renderApp() {
-            let transactions = JSON.parse(localStorage.getItem('couple_transactions')) || [];
-            const selectedMonth = document.getElementById('filter-month').value;
-            const periodLabel = document.getElementById('summary-period-label');
+            const list = getFiltered();
+            document.getElementById('summary-period-label').textContent = getPeriodLabel(false);
+            document.getElementById('history-period-label').textContent = `${getPeriodLabel(false)} · ${list.length} รายการ`;
+            renderSummary(list);
+            renderList(list);
+        }
 
-            let filteredTransactions = transactions;
-            if (selectedMonth !== 'all') {
-                filteredTransactions = transactions.filter(tx => {
-                    const d = new Date(tx.dateTime);
-                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === selectedMonth;
-                });
-                const [y, m] = selectedMonth.split('-');
-                periodLabel.textContent = new Date(y, m - 1).toLocaleDateString('th-TH', { month: 'short', year: 'numeric' });
-            } else { periodLabel.textContent = 'ทั้งหมด'; }
+        function renderSummary(list) {
+            const view = document.getElementById('summary-view').value;
+            const box = document.getElementById('summary-content');
 
-            filteredTransactions.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
-            const listEl = document.getElementById('transaction-list');
-            
-            if (filteredTransactions.length === 0) {
-                listEl.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">ไม่มีรายการบันทึก</p>`;
-                document.getElementById('summary-total').textContent = '0.00 บาท';
-                document.getElementById('summary-per-person').textContent = '0.00 บาท';
-                document.getElementById('summary-settlement').textContent = 'ไม่มีข้อมูลสำหรับช่วงเวลานี้';
+            if (list.length === 0) {
+                box.innerHTML = `<p class="text-gray-500">ไม่มีข้อมูลสำหรับช่วงเวลานี้</p>`;
                 return;
             }
 
-            let totalSum = 0;
-            let userTotals = {};
-            filteredTransactions.forEach(tx => {
-                totalSum += tx.amount;
-                userTotals[tx.userNickname] = (userTotals[tx.userNickname] || 0) + tx.amount;
-            });
+            // มุมมอง: แยกทุกหมวดหมู่
+            if (view === 'by-category') {
+                const groups = groupByCategory(list);
+                const s = calcSplit(list);
+                const rows = groups.map(g => `
+                    <tr class="border-b border-sky-100">
+                        <td class="py-2 pr-2">${escapeHtml(g.category)} <span class="text-[10px] text-gray-400">(${g.count})</span></td>
+                        <td class="py-2 text-right font-semibold whitespace-nowrap">${fmt(g.total)}</td>
+                        <td class="py-2 text-right text-sky-600 whitespace-nowrap">${fmt(g.total / 2)}</td>
+                    </tr>`).join('');
+                box.innerHTML = `
+                    <table class="w-full">
+                        <thead><tr class="text-xs text-gray-500 border-b border-sky-200">
+                            <th class="text-left pb-1 font-medium">หมวดหมู่</th>
+                            <th class="text-right pb-1 font-medium">ยอดรวม</th>
+                            <th class="text-right pb-1 font-medium">หาร 2</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                        <tfoot><tr class="font-bold">
+                            <td class="pt-2">รวมทั้งหมด</td>
+                            <td class="pt-2 text-right whitespace-nowrap">${fmt(s.total)}</td>
+                            <td class="pt-2 text-right text-sky-600 whitespace-nowrap">${fmt(s.half)}</td>
+                        </tr></tfoot>
+                    </table>
+                    ${paidBreakdownHtml(s)}
+                    <div class="mt-3 font-medium">${settlementText(s)}</div>`;
+                return;
+            }
 
-            const perPerson = totalSum / 2;
-            document.getElementById('summary-total').textContent = totalSum.toLocaleString(undefined, {minimumFractionDigits: 2}) + ' บาท';
-            document.getElementById('summary-per-person').textContent = perPerson.toLocaleString(undefined, {minimumFractionDigits: 2}) + ' บาท';
+            // มุมมอง: รวมทั้งหมด หรือ หมวดเดียว
+            let sub = list, title = 'ยอดใช้จ่ายรวมทุกหมวด';
+            if (view.startsWith('cat:')) {
+                const cat = view.slice(4);
+                sub = list.filter(tx => tx.category === cat);
+                title = `ยอดหมวด ${cat}`;
+            }
+            const s = calcSplit(sub);
+            if (sub.length === 0) {
+                box.innerHTML = `<p class="text-gray-500">ไม่มีรายการในหมวดนี้ สำหรับช่วงเวลาที่เลือก</p>`;
+                return;
+            }
+            box.innerHTML = `
+                <div class="space-y-2">
+                    <div class="flex justify-between"><span>${escapeHtml(title)} (${sub.length} รายการ):</span><span class="font-bold text-gray-900 whitespace-nowrap">${fmt(s.total)} บาท</span></div>
+                    <div class="flex justify-between"><span>เฉลี่ยคนละ (หาร 2):</span><span class="font-bold text-sky-600 whitespace-nowrap">${fmt(s.half)} บาท</span></div>
+                </div>
+                ${paidBreakdownHtml(s)}
+                <hr class="border-sky-200/60 my-3">
+                <div class="font-medium">${settlementText(s)}</div>`;
+        }
 
-            let settlementHtml = '';
-            const names = Object.keys(userTotals);
-            if (names.length === 2) {
-                const diff = (userTotals[names[0]] || 0) - perPerson;
-                if (diff > 0) settlementHtml = `💡 <b>${names[1]}</b> ต้องโอนเคลียร์เงินให้ <b>${names[0]}</b> <span class="text-sky-600 font-bold">${Math.abs(diff).toLocaleString(undefined, {minimumFractionDigits: 2})} บาท</span>`;
-                else if (diff < 0) settlementHtml = `💡 <b>${names[0]}</b> ต้องโอนเคลียร์เงินให้ <b>${names[1]}</b> <span class="text-sky-600 font-bold">${Math.abs(diff).toLocaleString(undefined, {minimumFractionDigits: 2})} บาท</span>`;
-                else settlementHtml = `✨ ยอดใช้จ่ายเท่ากันเป๊ะ!`;
-            } else { settlementHtml = `ℹ️ รอรายการจากอีกฝ่าย`; }
-            document.getElementById('summary-settlement').innerHTML = settlementHtml;
-
+        function renderList(list) {
+            const listEl = document.getElementById('transaction-list');
+            if (list.length === 0) {
+                listEl.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">ไม่มีรายการบันทึก</p>`;
+                return;
+            }
             listEl.innerHTML = '';
-            filteredTransactions.forEach(tx => {
+            list.forEach(tx => {
+                const id = getTxId(tx);
                 const dateStr = new Date(tx.dateTime).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const item = document.createElement('div');
-                item.className = "flex flex-col sm:flex-row justify-between items-start sm:items-center p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 text-sm gap-2";
-                
-                let slipSectionHtml = '';
-                if (tx.slipUrl) {
-                    slipSectionHtml = `
-                        <div class="mt-2">
-                            <button onclick="openSlipModal('${tx.slipUrl}')" class="text-[11px] bg-sky-100 text-sky-700 px-2.5 py-1 rounded-md font-medium hover:bg-sky-200 transition">🔍 ดูสลิปเต็มจอ</button>
-                            <div class="mt-2">
-                                <img src="${tx.slipUrl}" class="w-24 h-24 object-cover rounded-lg border shadow-sm" alt="สลิปโอนเงิน">
-                            </div>
-                        </div>
-                    `;
-                }
-
+                item.className = "p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 text-sm";
                 item.innerHTML = `
-                    <div>
-                        <div class="font-semibold text-gray-800">${tx.category}</div>
-                        <div class="text-xs text-gray-500">${tx.description ? tx.description + ' • ' : ''}โดย: <b>${tx.userNickname} (${tx.userRole})</b></div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">${dateStr}</div>
-                        ${slipSectionHtml}
+                    <div class="flex justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-semibold text-gray-800">${escapeHtml(tx.category)}</div>
+                            <div class="text-xs text-gray-500 break-words">${tx.description ? escapeHtml(tx.description) + ' • ' : ''}โดย: <b>${escapeHtml(tx.userNickname)} (${escapeHtml(tx.userRole)})</b></div>
+                            <div class="text-[10px] text-gray-400 mt-0.5">${dateStr}</div>
+                        </div>
+                        <div class="font-bold text-rose-500 text-base whitespace-nowrap">-${fmt(tx.amount)}</div>
                     </div>
-                    <div class="text-right self-end sm:self-center">
-                        <div class="font-bold text-rose-500 text-base">-${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                    </div>
-                `;
+                    ${tx.slipUrl ? `<img src="${escapeHtml(tx.slipUrl)}" onclick="openSlipById('${id}')" class="mt-2 w-20 h-20 object-cover rounded-lg border shadow-sm cursor-pointer" alt="สลิปโอนเงิน">` : ''}
+                    ${id ? `
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="openEditModal('${id}')" class="flex-1 text-xs bg-amber-100 text-amber-700 py-1.5 rounded-lg font-medium hover:bg-amber-200 transition">✏️ แก้ไข</button>
+                        <button onclick="deleteTransaction('${id}')" class="flex-1 text-xs bg-rose-100 text-rose-600 py-1.5 rounded-lg font-medium hover:bg-rose-200 transition">🗑️ ลบ</button>
+                    </div>` : ''}`;
                 listEl.appendChild(item);
             });
         }
 
-        function openSlipModal(url) {
-            document.getElementById('modal-slip-img').src = url;
+        // ================= ดูสลิป =================
+        function openSlipById(id) {
+            const tx = allTransactions.find(t => getTxId(t) === id);
+            if (!tx || !tx.slipUrl) return;
+            document.getElementById('modal-slip-img').src = tx.slipUrl;
             document.getElementById('slip-modal').classList.remove('hidden');
         }
         function closeSlipModal() {
             document.getElementById('slip-modal').classList.add('hidden');
         }
 
-        // ฟังก์ชัน Export ประวัติพร้อมรูปสลิปเป็น PDF แบบสมบูรณ์ (แก้หน้าจอขาว)
-        function exportToPDF() {
-            let transactions = JSON.parse(localStorage.getItem('couple_transactions')) || [];
-            const selectedMonth = document.getElementById('filter-month').value;
-            
-            let filteredTransactions = transactions;
-            let periodTitle = "ทั้งหมด";
-            if (selectedMonth !== 'all') {
-                filteredTransactions = transactions.filter(tx => {
-                    const d = new Date(tx.dateTime);
-                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === selectedMonth;
-                });
-                const [y, m] = selectedMonth.split('-');
-                periodTitle = new Date(y, m - 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+        // ================= แก้ไข / ลบ =================
+        function openEditModal(id) {
+            const tx = allTransactions.find(t => getTxId(t) === id);
+            if (!tx) return;
+
+            const catSelect = document.getElementById('edit-category');
+            if (![...catSelect.options].some(o => o.value === tx.category)) {
+                catSelect.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(tx.category)}">${escapeHtml(tx.category)}</option>`);
             }
 
-            if (filteredTransactions.length === 0) {
-                alert('ไม่พบข้อมูลสำหรับสร้าง PDF');
-                return;
+            document.getElementById('edit-id').value = id;
+            catSelect.value = tx.category;
+            document.getElementById('edit-amount').value = tx.amount;
+            document.getElementById('edit-desc').value = tx.description || '';
+            document.getElementById('edit-datetime').value = toLocalInput(tx.dateTime);
+            document.getElementById('edit-slip').value = '';
+            document.getElementById('edit-remove-slip').checked = false;
+
+            const preview = document.getElementById('edit-slip-preview');
+            const removeWrap = document.getElementById('edit-remove-wrap');
+            if (tx.slipUrl) {
+                preview.innerHTML = `<img src="${escapeHtml(tx.slipUrl)}" class="w-24 h-24 object-cover rounded-lg border">`;
+                removeWrap.classList.remove('hidden'); removeWrap.classList.add('flex');
+            } else {
+                preview.textContent = 'ไม่มีสลิป';
+                removeWrap.classList.add('hidden'); removeWrap.classList.remove('flex');
             }
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
 
-            let totalSum = 0;
-            filteredTransactions.forEach(tx => totalSum += tx.amount);
-            const perPerson = totalSum / 2;
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
 
-            const container = document.createElement('div');
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
-            container.style.top = '0';
-            container.style.padding = '20px';
-            container.style.fontFamily = "'Prompt', sans-serif";
-            container.style.color = '#333';
-            container.style.background = '#ffffff';
-            container.style.width = '700px';
+        async function saveEdit(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const tx = allTransactions.find(t => getTxId(t) === id);
+            if (!tx) return;
 
-            let htmlContent = `
-                <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">
-                    <h1 style="font-size: 22px; font-weight: bold; color: #0284c7; margin: 0;">PairPay - รายงานประวัติรายจ่ายคู่รัก</h1>
-                    <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">ช่วงเวลา: ${periodTitle} | ออกรายงานเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
-                </div>
-                <div style="background: #f0f9ff; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
-                    <div><b>ยอดใช้จ่ายรวมสุทธิ:</b> ${totalSum.toLocaleString(undefined, {minimumFractionDigits: 2})} บาท</div>
-                    <div><b>เฉลี่ยคนละ (หาร 2):</b> ${perPerson.toLocaleString(undefined, {minimumFractionDigits: 2})} บาท</div>
-                </div>
-                <div style="font-size: 13px;">
-                    <h3 style="font-size: 15px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">รายการทั้งหมด</h3>
-            `;
+            const btn = document.getElementById('btn-save-edit');
+            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+            try {
+                let slipUrl = tx.slipUrl || '';
+                if (document.getElementById('edit-remove-slip').checked) slipUrl = '';
+                const newFile = document.getElementById('edit-slip').files[0];
+                if (newFile) slipUrl = await compressImage(newFile);
 
-            filteredTransactions.forEach((tx, index) => {
-                const dateStr = new Date(tx.dateTime).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                
-                htmlContent += `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #eee; padding: 10px 0;">
-                        <div style="flex: 1; padding-right: 10px;">
-                            <div style="font-weight: bold; color: #1e293b;">${index + 1}. ${tx.category}</div>
-                            <div style="font-size: 11px; color: #555; margin-top: 2px;">${tx.description ? tx.description + ' • ' : ''}ผู้ทำรายการ: <b>${tx.userNickname} (${tx.userRole})</b></div>
-                            <div style="font-size: 10px; color: #888; margin-top: 1px;">${dateStr}</div>
-                            ${tx.slipUrl ? `<div style="margin-top: 6px;"><img src="${tx.slipUrl}" crossorigin="anonymous" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #ccc;" /></div>` : ''}
-                        </div>
-                        <div style="text-align: right; font-weight: bold; color: #e11d48; font-size: 14px; white-space: nowrap;">
-                            -${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} ฿
-                        </div>
-                    </div>
-                `;
-            });
-
-            htmlContent += `</div>`;
-            container.innerHTML = htmlContent;
-            document.body.appendChild(container);
-
-            setTimeout(async () => {
-                const opt = {
-                    margin:       10,
-                    filename:     `PairPay-Report-${selectedMonth}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                const body = {
+                    category: document.getElementById('edit-category').value,
+                    amount: parseFloat(document.getElementById('edit-amount').value),
+                    description: document.getElementById('edit-desc').value.trim(),
+                    dateTime: document.getElementById('edit-datetime').value,
+                    slipUrl
                 };
 
-                try {
-                    await html2pdf().from(container).set(opt).save();
-                } catch (err) {
-                    console.error('PDF Error:', err);
-                    alert('เกิดข้อผิดพลาดในการสร้าง PDF');
-                } finally {
-                    document.body.removeChild(container);
-                }
-            }, 600);
+                const res = await fetch(`${API_BASE_URL}/api/transactions/${id}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                if (res.ok) {
+                    closeEditModal();
+                    await loadTransactionsFromCloud();
+                } else if (res.status === 404) {
+                    alert('ไม่พบรายการ หรือเซิร์ฟเวอร์ยังไม่รองรับการแก้ไข (ต้องเพิ่ม API PUT ใน backend)');
+                } else alert('แก้ไขไม่สำเร็จ');
+            } catch (err) { console.error(err); alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
+            finally { btn.disabled = false; btn.textContent = 'บันทึกการแก้ไข'; }
+        }
+
+        async function deleteTransaction(id) {
+            const tx = allTransactions.find(t => getTxId(t) === id);
+            if (!tx) return;
+            if (!confirm(`ยืนยันการลบรายการนี้?\n\n${tx.category}\nจำนวน ${fmt(tx.amount)} บาท\nโดย ${tx.userNickname}`)) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/transactions/${id}`, { method: 'DELETE' });
+                if (res.ok) await loadTransactionsFromCloud();
+                else if (res.status === 404) alert('ไม่พบรายการ หรือเซิร์ฟเวอร์ยังไม่รองรับการลบ (ต้องเพิ่ม API DELETE ใน backend)');
+                else alert('ลบไม่สำเร็จ');
+            } catch (err) { console.error(err); alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
+        }
+
+        // ================= Statement =================
+        function getStatementList() {
+            return getFiltered().sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+        }
+
+        function buildStatementHtml() {
+            const list = getStatementList();
+            if (!list.length) return '';
+            const s = calcSplit(list);
+            const groups = groupByCategory(list);
+            const people = s.people.slice(0, 2);
+            const withSlips = document.getElementById('st-include-slips').checked;
+
+            const personHead = people.map(p => `<th class="num">${escapeHtml(p)} จ่าย</th>`).join('');
+            const catRows = groups.map(g => `
+                <tr class="st-row">
+                    <td>${escapeHtml(g.category)}</td>
+                    <td class="num">${g.count}</td>
+                    ${people.map(p => `<td class="num">${fmt(g.byPerson[p] || 0)}</td>`).join('')}
+                    <td class="num"><b>${fmt(g.total)}</b></td>
+                    <td class="num">${fmt(g.total / 2)}</td>
+                </tr>`).join('');
+
+            const txRows = list.map((tx, i) => {
+                const d = new Date(tx.dateTime);
+                return `
+                <tr class="st-row">
+                    <td class="num">${i + 1}</td>
+                    <td>${d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}<br><span class="muted">${d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span></td>
+                    <td>${escapeHtml(tx.category)}</td>
+                    <td>${escapeHtml(tx.description || '-')}</td>
+                    <td>${escapeHtml(tx.userNickname)}</td>
+                    <td class="num">${fmt(tx.amount)}</td>
+                    ${withSlips ? `<td>${tx.slipUrl ? `<img class="slip" src="${escapeHtml(tx.slipUrl)}">` : '-'}</td>` : ''}
+                </tr>`;
+            }).join('');
+
+            return `
+            <div class="st">
+                <div class="st-head">
+                    <h1>PairPay — Statement รายจ่ายแนนกับเปา</h1>
+                    <div class="muted">ประจำงวด: <b>${getPeriodLabel(true)}</b> · ออกเอกสารเมื่อ ${new Date().toLocaleString('th-TH')} · ${list.length} รายการ</div>
+                </div>
+
+                <div class="sec">1. สรุปยอด</div>
+                <div class="box">
+                    <div>ยอดใช้จ่ายรวมทั้งหมด: <b>${fmt(s.total)} บาท</b></div>
+                    <div>หารสอง (คนละ): <b>${fmt(s.half)} บาท</b></div>
+                    ${people.map(p => `<div>${escapeHtml(p)} จ่ายไปแล้ว: ${fmt(s.paid[p] || 0)} บาท</div>`).join('')}
+                    <div style="margin-top:4px">${settlementText(s)}</div>
+                </div>
+
+                <div class="sec">2. สรุปแยกตามหมวดหมู่</div>
+                <table>
+                    <thead><tr><th>หมวดหมู่</th><th class="num">รายการ</th>${personHead}<th class="num">ยอดรวม</th><th class="num">หาร 2</th></tr></thead>
+                    <tbody>${catRows}</tbody>
+                    <tfoot><tr>
+                        <td>รวมทั้งหมด</td><td class="num">${list.length}</td>
+                        ${people.map(p => `<td class="num">${fmt(s.paid[p] || 0)}</td>`).join('')}
+                        <td class="num">${fmt(s.total)}</td><td class="num">${fmt(s.half)}</td>
+                    </tr></tfoot>
+                </table>
+
+                <div class="sec">3. รายการทั้งหมด</div>
+                <table>
+                    <thead><tr><th class="num">#</th><th>วันที่</th><th>หมวดหมู่</th><th>รายละเอียด</th><th>ผู้จ่าย</th><th class="num">จำนวนเงิน</th>${withSlips ? '<th>สลิป</th>' : ''}</tr></thead>
+                    <tbody>${txRows}</tbody>
+                    <tfoot><tr><td colspan="5">รวมทั้งหมด</td><td class="num">${fmt(s.total)}</td>${withSlips ? '<td></td>' : ''}</tr></tfoot>
+                </table>
+
+                <div class="muted" style="margin-top:14px;text-align:center">เอกสารนี้สร้างจากระบบ PairPay (ระบบบัญชีรายจ่ายแนนกับเปา)</div>
+            </div>`;
+        }
+
+        function openStatement() {
+            if (!getStatementList().length) { alert('ไม่มีรายการในช่วงเวลาที่เลือก'); return; }
+            refreshStatement();
+            document.getElementById('statement-modal').classList.remove('hidden');
+        }
+        function refreshStatement() {
+            document.getElementById('statement-content').innerHTML = buildStatementHtml();
+        }
+        function closeStatement() {
+            document.getElementById('statement-modal').classList.add('hidden');
+        }
+
+        function printStatement() {
+            document.getElementById('print-area').innerHTML = buildStatementHtml();
+            setTimeout(() => window.print(), 300);
+        }
+        window.addEventListener('afterprint', () => { document.getElementById('print-area').innerHTML = ''; });
+
+        function downloadCSV() {
+            const list = getStatementList();
+            if (!list.length) return;
+            const s = calcSplit(list);
+            const groups = groupByCategory(list);
+            const people = s.people.slice(0, 2);
+
+            const rows = [];
+            rows.push([`PairPay Statement - ${getPeriodLabel(true)}`]);
+            rows.push([]);
+            rows.push(['ลำดับ', 'วันที่', 'เวลา', 'หมวดหมู่', 'รายละเอียด', 'ผู้จ่าย', 'สถานะ', 'จำนวนเงิน (บาท)']);
+            list.forEach((tx, i) => {
+                const d = new Date(tx.dateTime);
+                rows.push([i + 1, d.toLocaleDateString('th-TH'), d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+                    tx.category, tx.description || '', tx.userNickname, tx.userRole || '', (Number(tx.amount) || 0).toFixed(2)]);
+            });
+            rows.push(['', '', '', 'รวมทั้งหมด', '', '', '', s.total.toFixed(2)]);
+            rows.push(['', '', '', 'หาร 2 (คนละ)', '', '', '', s.half.toFixed(2)]);
+            rows.push([]);
+            rows.push(['สรุปแยกตามหมวดหมู่']);
+            rows.push(['หมวดหมู่', 'จำนวนรายการ', ...people.map(p => `${p} จ่าย`), 'ยอดรวม', 'หาร 2']);
+            groups.forEach(g => rows.push([g.category, g.count, ...people.map(p => (g.byPerson[p] || 0).toFixed(2)), g.total.toFixed(2), (g.total / 2).toFixed(2)]));
+            rows.push(['รวมทั้งหมด', list.length, ...people.map(p => (s.paid[p] || 0).toFixed(2)), s.total.toFixed(2), s.half.toFixed(2)]);
+            rows.push([]);
+            if (s.payer) rows.push([`${s.payer} ต้องโอนเคลียร์ให้ ${s.receiver}`, s.diff.toFixed(2)]);
+
+            const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `PairPay-Statement-${document.getElementById('filter-month').value}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
     </script>
 </body>
