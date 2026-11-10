@@ -1,4 +1,4 @@
-// แก้ไขรายการ
+// รองรับการแก้ไขรายการ (PUT)
 app.put('/api/transactions/:id', async (req, res) => {
   try {
     const { category, amount, description, slipUrl, dateTime } = req.body;
@@ -14,7 +14,7 @@ app.put('/api/transactions/:id', async (req, res) => {
   }
 });
 
-// ลบรายการ
+// รองรับการลบรายการ (DELETE)
 app.delete('/api/transactions/:id', async (req, res) => {
   try {
     const deleted = await Transaction.findByIdAndDelete(req.params.id);
