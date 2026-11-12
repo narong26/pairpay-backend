@@ -1,10 +1,18 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '15mb' })); // รองรับอัปโหลดสลิปขนาดใหญ่
+
+// ตั้งค่าให้เสิร์ฟหน้าเว็บไซต์ (index.html และไฟล์ Static อื่นๆ)
+app.use(express.static(path.join(__dirname)));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // 1. เชื่อมต่อ MongoDB
 const MONGO_URI = process.env.MONGO_URI || 'ใส่_Mongo_URI_ของคุณตรงนี้';
@@ -38,7 +46,9 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// ================= API ROUTES: Transactions =================
+// =====================================
+// API ROUTES: Transactions
+// =====================================
 
 // ดึงรายการทั้งหมด
 app.get('/api/transactions', async (req, res) => {
@@ -88,7 +98,9 @@ app.delete('/api/transactions/:id', async (req, res) => {
     }
 });
 
-// ================= API ROUTES: Auth (ระบบสมาชิก) =================
+// =====================================
+// API ROUTES: Auth (ระบบสมาชิก)
+// =====================================
 
 // สมัครสมาชิก
 app.post('/api/auth/register', async (req, res) => {
@@ -98,7 +110,7 @@ app.post('/api/auth/register', async (req, res) => {
         if (existing) {
             return res.status(400).json({ message: 'Username นี้ถูกใช้งานแล้ว' });
         }
-        
+
         const newUser = new User({ username, phone, nickname, idCard, role });
         await newUser.save();
         res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ' });
@@ -116,13 +128,15 @@ app.post('/api/auth/login', async (req, res) => {
         if (!user) {
             return res.status(400).json({ message: 'Username หรือ รหัสผ่านไม่ถูกต้อง' });
         }
-        
+
         res.json({ message: 'เข้าสู่ระบบสำเร็จ', user });
     } catch (err) {
         res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ', error: err.message });
     }
 });
 
-// 3. รันเซิร์ฟเวอร์
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// 3. รันเซิร์ฟเวอร์ที่พอร์ต 10871
+const PORT = process.env.PORT || 10871;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
