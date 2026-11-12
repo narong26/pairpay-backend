@@ -15,7 +15,8 @@ app.get('/', (req, res) => {
 });
 
 // 1. เชื่อมต่อ MongoDB
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://PairPay2026:hGoJpG4PutGiRhx9@cluster0.gg1hwpl.mongodb.net/pairpay';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://PairPay2026:pairpay2026@cluster0.gg1hwpl.mongodb.net/pairpay';
+
 mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
